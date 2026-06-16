@@ -1,0 +1,97 @@
+import numpy as np
+
+def asdual(x):
+    if isinstance(x, Dual):
+        return x
+    return Dual(x, 0.0)
+
+def _add_dual(x: Dual, y: Dual):
+    return Dual(x.a + y.a, x.b + y.b)
+
+def _sub_dual(x: Dual, y: Dual):
+    return Dual(x.a - y.a, x.b - y.b)
+
+def _mul_dual(x: Dual, y: Dual):
+    a, b = x.a, x.b
+    c, d = y.a, y.b
+    return Dual(a*c, a*d + b*c)
+
+def _div_dual(x: Dual, y: Dual):
+    a, b = x.a, x.b
+    c, d = y.a, y.b
+    return Dual(a/c, (b*c - a*d)/c**2)
+
+def _pow_dual(x: Dual, y: Dual):
+    a, b = x.a, x.b
+    c, d = y.a, y.b
+    ac = a**c
+    return Dual(ac, ac * (d * np.log(a) + b*c / a))
+
+DUAL_BINARY_OPS = {
+    np.add: _add_dual,
+    np.subtract: _sub_dual,
+    np.multiply: _mul_dual,
+    np.divide: _div_dual,
+    np.power: _pow_dual,
+}
+
+def _sin_dual(x: Dual):
+    a, b = x.a, x.b
+    return Dual(np.sin(a), np.cos(a) * b)
+
+def _cos_dual(x: Dual):
+    a, b = x.a, x.b
+    return Dual(np.cos(a), -np.sin(a) * b)
+
+def _exp_dual(x: Dual):
+    a, b = x.a, x.b
+    ea = np.exp(a)
+    return Dual(ea, ea * b)
+
+def _log_dual(x: Dual):
+    a, b = x.a, x.b
+    return Dual(np.log(a), b / a)
+
+def _sqrt_dual(x: Dual):
+    a, b = x.a, x.b
+    sa = np.sqrt(a)
+    return Dual(sa, b / (2 * sa))
+
+DUAL_UNARY_OPS = {
+    np.sin: _sin_dual,
+    np.cos: _cos_dual,
+    np.exp: _exp_dual,
+    np.log: _log_dual,
+    np.sqrt: _sqrt_dual,
+}
+
+class Dual(np.lib.mixins.NDArrayOperatorsMixin):
+    def __init__(self, a, b):
+        self.a = np.asarray(a)
+        self.b = np.asarray(b)
+
+    @property
+    def shape(self):
+        return self.a.shape
+
+    @property
+    def ndim(self):
+        return self.a.ndim
+
+    def __str__(self):
+        if self.ndim == 0:
+            return f'{self.a}, {self.b}'
+
+    def __array_ufunc__(self, ufunc, method, *inputs, **kwargs):
+        if method != '__call__':
+            return NotImplemented
+
+        if ufunc in DUAL_BINARY_OPS:
+            x = asdual(inputs[0])
+            y = asdual(inputs[1])
+
+            return DUAL_BINARY_OPS[ufunc](x, y)
+        elif ufunc in DUAL_UNARY_OPS:
+            return DUAL_UNARY_OPS[ufunc](self)
+        else:
+            return NotImplemented
