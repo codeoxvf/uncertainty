@@ -8,16 +8,17 @@ def uncertain(x):
 
 class Uncertain(np.lib.mixins.NDArrayOperatorsMixin):
     def __init__(self, mean, sd, correlations=None):
-        if mean.shape != sd.shape:
-            raise ValueError('mean and sd must have the same shape')
-
         self.mean = np.asarray(mean)
         self.sd = np.asarray(sd)
+
+        if self.mean.shape != self.sd.shape:
+            raise ValueError('mean and sd must have the same shape')
 
         if correlations is None:
             self.correlations = { self: 1 }
         else:
             self.correlations = correlations
+            self.correlations[self] = 1
 
     @property
     def relerr(self):

@@ -94,6 +94,9 @@ class Dual(np.lib.mixins.NDArrayOperatorsMixin):
         self.a = np.asarray(a)
         self.b = np.asarray(b)
 
+        if self.a.shape != self.b.shape:
+            raise ValueError('a and b must have the same shape')
+
     @property
     def shape(self):
         return self.a.shape
