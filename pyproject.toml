@@ -1,0 +1,14 @@
+[project]
+name = "Uncertainty"
+version = "0.1.0"
+description = "Uncertainty propagation"
+readme = "README.md"
+requires-python = ">=3.14"
+dependencies = [
+    "numpy>=2.4.6",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=9.1.0",
+]
