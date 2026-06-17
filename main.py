@@ -1,3 +1,5 @@
+from dual import Dual
+
 def main():
     print("Hello from uncertainty!")
 

@@ -28,9 +28,10 @@ def test_binary(ufunc, x, y, a, b):
 
 def test_power_const_exp():
     x = Dual(3, 0.3)
-    z = np.power(x, 2)
 
-    check(z, 9, 1.8)
+    y = np.power(x, 2)
+
+    check(y, 9, 1.8)
 
 def test_power_dual_exp():
     x = Dual(3, 0.3)
@@ -91,3 +92,10 @@ def test_symmetry():
     z2 = y + x
 
     check(z1, z2.a, z2.b)
+
+def test_composition():
+    x = Dual(2, 0.2)
+
+    y = np.sin(x**2)
+
+    check(y, np.sin(4), 0.8*np.cos(4))
