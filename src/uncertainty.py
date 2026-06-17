@@ -1,40 +1,21 @@
 import numpy as np
-from dual import Dual
+from dual import Dual, DUAL_BINARY_OPS, DUAL_UNARY_OPS
 
 def uncertain(x):
     if isinstance(x, Uncertain):
         return x
     return Uncertain(x, 0.0)
 
-UNCERTAIN_BINARY_OPS = set([
-    np.add,
-    np.subtract,
-    np.multiply,
-    np.divide,
-    np.power,
-    np.equal,
-    np.not_equal,
-    np.less,
-    np.less_equal,
-    np.greater,
-    np.greater_equal,
-])
-
-UNCERTAIN_UNARY_OPS = set([
-    np.sin,
-    np.cos,
-    np.exp,
-    np.log,
-    np.sqrt,
-])
-
 class Uncertain(np.lib.mixins.NDArrayOperatorsMixin):
     def __init__(self, mean, sd, correlations=None):
+        if mean.shape != sd.shape:
+            raise ValueError('mean and sd must have the same shape')
+
         self.mean = np.asarray(mean)
         self.sd = np.asarray(sd)
 
         if correlations is None:
-            self.correlations = set()
+            self.correlations = { self: 1 }
         else:
             self.correlations = correlations
 
@@ -49,6 +30,14 @@ class Uncertain(np.lib.mixins.NDArrayOperatorsMixin):
     @property
     def ndim(self):
         return self.mean.ndim
+    
+    def add_corr(self, other, corr):
+        if not isinstance(other, Uncertain):
+            raise TypeError('Uncertains can only be correlated to other Uncertains')
+        self.correlations[other] = corr
+    
+    def __hash__(self):
+        return id(self)
 
     def __repr__(self):
         return f'Uncertain(mean={self.mean}, sd={self.sd})'
@@ -82,7 +71,7 @@ class Uncertain(np.lib.mixins.NDArrayOperatorsMixin):
         if method != '__call__':
             return NotImplemented
 
-        if ufunc in UNCERTAIN_BINARY_OPS:
+        if ufunc in DUAL_BINARY_OPS:
             x, y = inputs
             x = uncertain(x)
             y = uncertain(y)
@@ -91,14 +80,20 @@ class Uncertain(np.lib.mixins.NDArrayOperatorsMixin):
             dxf = ufunc(Dual(x.mean, 1), Dual(y.mean, 0)).b
             dyf = ufunc(Dual(x.mean, 0), Dual(y.mean, 1)).b
 
+            var = (dxf * x.sd)**2 + (dyf * y.sd)**2
+            if y in x.correlations:
+                var += 2 * x.correlations[y] * x.sd * y.sd * dxf * dyf
+
             mean = ufunc(x.mean, y.mean)
-            sd = np.sqrt((dxf * x.sd)**2 + (dyf * y.sd)**2)
+            sd = np.sqrt(var)
 
             return Uncertain(mean, sd)
-        elif ufunc in UNCERTAIN_UNARY_OPS:
+
+        elif ufunc in DUAL_UNARY_OPS:
             mean = ufunc(self.mean)
             sd = np.abs(ufunc(Dual(self.mean, 1)).b) * self.sd
 
             return Uncertain(mean, sd)
+
         else:
             return NotImplemented
