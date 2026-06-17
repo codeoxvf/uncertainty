@@ -4,6 +4,7 @@ from dual import Dual, DUAL_BINARY_OPS, DUAL_COMPARE_OPS, DUAL_UNARY_OPS
 def uncertain(x):
     if isinstance(x, Uncertain):
         return x
+
     return Uncertain(x, 0.0)
 
 class Uncertain(np.lib.mixins.NDArrayOperatorsMixin):
@@ -13,7 +14,7 @@ class Uncertain(np.lib.mixins.NDArrayOperatorsMixin):
 
         if self.sd.ndim > 0 and self.mean.shape != self.sd.shape:
             raise ValueError('mean and sd must have the same shape')
-        
+
         if np.any(self.sd < 0):
             raise ValueError('sd cannot be negative')
 
@@ -34,19 +35,19 @@ class Uncertain(np.lib.mixins.NDArrayOperatorsMixin):
     @property
     def ndim(self):
         return self.mean.ndim
-    
+
     def add_corr(self, other, corr):
         if not isinstance(other, Uncertain):
             raise TypeError('Uncertains can only be correlated to other Uncertains')
         self.correlations[other] = corr
         other.correlations[self] = corr
-    
+
     def __hash__(self):
         return id(self)
 
     def __repr__(self):
         return f'Uncertain(mean={self.mean}, sd={self.sd})'
-    
+
     def __str__(self):
         if self.ndim == 0:
             return f'{self.mean} ± {self.sd}'

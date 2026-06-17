@@ -3,6 +3,7 @@ import numpy as np
 def asdual(x):
     if isinstance(x, Dual):
         return x
+
     return Dual(x, 0.0)
 
 def _add_dual(x: Dual, y: Dual):
@@ -14,18 +15,27 @@ def _sub_dual(x: Dual, y: Dual):
 def _mul_dual(x: Dual, y: Dual):
     a, b = x.a, x.b
     c, d = y.a, y.b
+
     return Dual(a*c, a*d + b*c)
 
 def _div_dual(x: Dual, y: Dual):
     a, b = x.a, x.b
     c, d = y.a, y.b
-    return Dual(a/c, (b*c - a*d)/c**2)
+    det = b*c - a*d
+
+    return Dual(a/c, det/c**2)
 
 def _pow_dual(x: Dual, y: Dual):
     a, b = x.a, x.b
     c, d = y.a, y.b
     ac = a**c
-    return Dual(ac, ac * (d * np.log(a) + b*c / a))
+
+    # handle case a == 0
+    with np.errstate(divide='ignore', invalid='ignore'):
+        b_out = ac * (d * np.log(a) + b*c / a)
+        b_0 = np.where(c == 1, b, np.where(c > 1, 0, np.inf))
+
+    return Dual(ac, np.where(a == 0, b_0, b_out))
 
 def _eq_dual(x: Dual, y: Dual):
     return np.isclose(x.a, y.a)
@@ -46,26 +56,21 @@ def _geq_dual(x: Dual, y: Dual):
     return x.a >= y.a
 
 def _sin_dual(x: Dual):
-    a, b = x.a, x.b
-    return Dual(np.sin(a), np.cos(a) * b)
+    return Dual(np.sin(x.a), np.cos(x.a) * x.b)
 
 def _cos_dual(x: Dual):
-    a, b = x.a, x.b
-    return Dual(np.cos(a), -np.sin(a) * b)
+    return Dual(np.cos(x.a), -np.sin(x.a) * x.b)
 
 def _exp_dual(x: Dual):
-    a, b = x.a, x.b
-    ea = np.exp(a)
-    return Dual(ea, ea * b)
+    ea = np.exp(x.a)
+    return Dual(ea, ea * x.b)
 
 def _log_dual(x: Dual):
-    a, b = x.a, x.b
-    return Dual(np.log(a), b / a)
+    return Dual(np.log(x.a), x.b / x.a)
 
 def _sqrt_dual(x: Dual):
-    a, b = x.a, x.b
-    sa = np.sqrt(a)
-    return Dual(sa, b / (2 * sa))
+    sa = np.sqrt(x.a)
+    return Dual(sa, x.b / (2 * sa))
 
 DUAL_BINARY_OPS = {
     np.add: _add_dual,
@@ -132,7 +137,7 @@ class Dual(np.lib.mixins.NDArrayOperatorsMixin):
             return s
 
         return f'Dual object with shape {self.shape}'
-    
+
     def __array_ufunc__(self, ufunc, method, *inputs, **kwargs):
         if method != '__call__':
             return NotImplemented

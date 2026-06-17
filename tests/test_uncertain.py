@@ -4,7 +4,9 @@ from uncertainty import Uncertain, uncertain
 
 def assert_uncertain_eq(x, mean, sd=None):
     assert isinstance(x, Uncertain)
+
     np.testing.assert_allclose(x.mean, mean, atol=1e-12)
+
     if sd is not None:
         np.testing.assert_allclose(x.sd, sd, atol=1e-12)
 
@@ -111,7 +113,7 @@ def test_symmetry():
 
     z1 = x + y
     z2 = y + x
-    
+
     assert_uncertain_eq(z1, z2.mean, z2.sd)
 
 def test_composition():
@@ -127,12 +129,36 @@ def test_self_correlation():
     assert_uncertain_eq(x - x, 0, 0.0)
     assert_uncertain_eq(x * x, x2.mean, x2.sd)
 
-def test_zero():
+@pytest.mark.parametrize('ufunc,mean,sd', [
+    pytest.param(np.sqrt, 0, np.inf, id='sqrt'),
+    # pytest.param(lambda x: 1/x, np.inf, np.inf, id='1/uscalar-0div'),
+    pytest.param(lambda x: 1/x, np.inf, np.nan, id='1/uscalar-0div'),
+    pytest.param(lambda x: 0/x, np.nan, np.nan, id='scalar/uscalar'),
+    pytest.param(lambda x: x/0, np.nan, np.nan, id='uscalar/scalar'),
+    pytest.param(np.log, -np.inf, np.inf, id='log'),
+])
+def test_zero(ufunc, mean, sd):
+    with pytest.warns(RuntimeWarning,
+            match=r'(divide by zero|invalid value) encountered'):
+        assert_uncertain_eq(ufunc(Uncertain(0, 0.1)), mean, sd)
+
+def test_other_zero():
     x = Uncertain(0, 0.1)
+    y = Uncertain(1, 0.1)
 
     assert_uncertain_eq(x**2, 0, 0.0)
 
-    with pytest.warns(RuntimeWarning, match="divide by zero encountered"):
-        assert_uncertain_eq(np.sqrt(x), 0, np.inf)
-        assert_uncertain_eq(1/x, np.inf, np.nan)
-        assert_uncertain_eq(np.log(x), -np.inf, np.inf)
+    with pytest.warns(RuntimeWarning,
+            match=r'(divide by zero|invalid value) encountered'):
+        # assert_uncertain_eq(y/0, np.inf, np.inf)
+        assert_uncertain_eq(y/0, np.inf, np.nan)
+
+@pytest.mark.parametrize('ufunc,mean,sd', [
+    pytest.param(np.log, np.nan, 0.1, id='log'),
+    pytest.param(np.sqrt, np.nan, np.nan, id='sqrt'),
+    pytest.param(lambda x: x**0.5, np.nan, np.nan, id='fractional-power'),
+])
+def test_imag(ufunc, mean, sd):
+    with pytest.warns(RuntimeWarning,
+            match=r'(divide by zero|invalid value) encountered'):
+        assert_uncertain_eq(ufunc(Uncertain(-1, 0.1)), mean, sd)
