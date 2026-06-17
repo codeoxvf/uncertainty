@@ -8,6 +8,8 @@ Propagation of uncertainty through numerical calculations using first-order Tayl
 
 Calculates partial derivatives using forward-mode automatic differentiation, implemented from scratch (class `Dual`).
 
+Compatible with (most) numpy `ufunc`s and supports vectorisation.
+
 ## Example
 
 ```python-repl

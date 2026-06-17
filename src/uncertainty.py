@@ -1,5 +1,5 @@
 import numpy as np
-from dual import Dual, DUAL_BINARY_OPS, DUAL_UNARY_OPS
+from dual import Dual, DUAL_BINARY_OPS, DUAL_COMPARE_OPS, DUAL_UNARY_OPS
 
 def uncertain(x):
     if isinstance(x, Uncertain):
@@ -11,8 +11,11 @@ class Uncertain(np.lib.mixins.NDArrayOperatorsMixin):
         self.mean = np.asarray(mean)
         self.sd = np.asarray(sd)
 
-        if self.mean.shape != self.sd.shape:
+        if self.sd.ndim > 0 and self.mean.shape != self.sd.shape:
             raise ValueError('mean and sd must have the same shape')
+        
+        if np.any(self.sd < 0):
+            raise ValueError('sd cannot be negative')
 
         if correlations is None:
             self.correlations = { self: 1 }
@@ -90,6 +93,13 @@ class Uncertain(np.lib.mixins.NDArrayOperatorsMixin):
             sd = np.sqrt(var)
 
             return Uncertain(mean, sd)
+
+        elif ufunc in DUAL_COMPARE_OPS:
+            x, y = inputs
+            x = uncertain(x)
+            y = uncertain(y)
+
+            return ufunc(x.mean, y.mean)
 
         elif ufunc in DUAL_UNARY_OPS:
             mean = ufunc(self.mean)

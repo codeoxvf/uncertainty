@@ -45,20 +45,6 @@ def _gt_dual(x: Dual, y: Dual):
 def _geq_dual(x: Dual, y: Dual):
     return x.a >= y.a
 
-DUAL_BINARY_OPS = {
-    np.add: _add_dual,
-    np.subtract: _sub_dual,
-    np.multiply: _mul_dual,
-    np.divide: _div_dual,
-    np.power: _pow_dual,
-    np.equal: _eq_dual,
-    np.not_equal: _neq_dual,
-    np.less: _lt_dual,
-    np.less_equal: _leq_dual,
-    np.greater: _gt_dual,
-    np.greater_equal: _geq_dual,
-}
-
 def _sin_dual(x: Dual):
     a, b = x.a, x.b
     return Dual(np.sin(a), np.cos(a) * b)
@@ -81,6 +67,23 @@ def _sqrt_dual(x: Dual):
     sa = np.sqrt(a)
     return Dual(sa, b / (2 * sa))
 
+DUAL_BINARY_OPS = {
+    np.add: _add_dual,
+    np.subtract: _sub_dual,
+    np.multiply: _mul_dual,
+    np.divide: _div_dual,
+    np.power: _pow_dual,
+}
+
+DUAL_COMPARE_OPS = {
+    np.equal: _eq_dual,
+    np.not_equal: _neq_dual,
+    np.less: _lt_dual,
+    np.less_equal: _leq_dual,
+    np.greater: _gt_dual,
+    np.greater_equal: _geq_dual,
+}
+
 DUAL_UNARY_OPS = {
     np.sin: _sin_dual,
     np.cos: _cos_dual,
@@ -94,7 +97,7 @@ class Dual(np.lib.mixins.NDArrayOperatorsMixin):
         self.a = np.asarray(a)
         self.b = np.asarray(b)
 
-        if self.a.shape != self.b.shape:
+        if self.b.ndim > 0 and self.a.shape != self.b.shape:
             raise ValueError('a and b must have the same shape')
 
     @property
@@ -139,7 +142,15 @@ class Dual(np.lib.mixins.NDArrayOperatorsMixin):
             y = asdual(inputs[1])
 
             return DUAL_BINARY_OPS[ufunc](x, y)
+
+        elif ufunc in DUAL_COMPARE_OPS:
+            x = asdual(inputs[0])
+            y = asdual(inputs[1])
+
+            return DUAL_COMPARE_OPS[ufunc](x, y)
+
         elif ufunc in DUAL_UNARY_OPS:
             return DUAL_UNARY_OPS[ufunc](self)
+
         else:
             return NotImplemented
