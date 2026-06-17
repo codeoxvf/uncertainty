@@ -36,6 +36,7 @@ class Uncertain(np.lib.mixins.NDArrayOperatorsMixin):
         if not isinstance(other, Uncertain):
             raise TypeError('Uncertains can only be correlated to other Uncertains')
         self.correlations[other] = corr
+        other.correlations[self] = corr
     
     def __hash__(self):
         return id(self)

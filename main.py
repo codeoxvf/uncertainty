@@ -1,8 +1,9 @@
-from dual import Dual
+from uncertainty import Uncertain
 
-def main():
-    print("Hello from uncertainty!")
+x = Uncertain(1, 0.5)
+y = Uncertain(1, 0.5)
 
+print(x + y)
 
-if __name__ == "__main__":
-    main()
+x.add_corr(y, 1)
+print(x - y)
