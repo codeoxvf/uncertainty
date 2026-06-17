@@ -27,12 +27,36 @@ def _pow_dual(x: Dual, y: Dual):
     ac = a**c
     return Dual(ac, ac * (d * np.log(a) + b*c / a))
 
+def _eq_dual(x: Dual, y: Dual):
+    return np.isclose(x.a, y.a)
+
+def _neq_dual(x: Dual, y: Dual):
+    return not np.isclose(x.a, y.a)
+
+def _lt_dual(x: Dual, y: Dual):
+    return x.a < y.a
+
+def _leq_dual(x: Dual, y: Dual):
+    return x.a <= y.a
+
+def _gt_dual(x: Dual, y: Dual):
+    return x.a > y.a
+
+def _geq_dual(x: Dual, y: Dual):
+    return x.a >= y.a
+
 DUAL_BINARY_OPS = {
     np.add: _add_dual,
     np.subtract: _sub_dual,
     np.multiply: _mul_dual,
     np.divide: _div_dual,
     np.power: _pow_dual,
+    np.equal: _eq_dual,
+    np.not_equal: _neq_dual,
+    np.less: _lt_dual,
+    np.less_equal: _leq_dual,
+    np.greater: _gt_dual,
+    np.greater_equal: _geq_dual,
 }
 
 def _sin_dual(x: Dual):
@@ -82,6 +106,27 @@ class Dual(np.lib.mixins.NDArrayOperatorsMixin):
         if self.ndim == 0:
             return f'{self.a}, {self.b}'
 
+        if self.ndim == 1:
+            s = '[ '
+
+            threshold = np.get_printoptions()['threshold']
+            if self.a.size < threshold:
+                for a, b in zip(self.a[:threshold], self.b[:threshold]):
+                    s += f'{a}, {b}\n  '
+                s = s[:-3]
+            else:
+                s += f'{self.a[0]}, {self.b[0]}\n  '
+                s += f'{self.a[1]}, {self.b[1]}\n  '
+                s += '...\n  '
+                s += f'{self.a[-2]}, {self.b[-2]}\n  '
+                s += f'{self.a[-1]}, {self.b[-1]}'
+
+            s += ' ]'
+
+            return s
+
+        return f'Dual object with shape {self.shape}'
+    
     def __array_ufunc__(self, ufunc, method, *inputs, **kwargs):
         if method != '__call__':
             return NotImplemented
