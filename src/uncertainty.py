@@ -12,7 +12,10 @@ class Uncertain(np.lib.mixins.NDArrayOperatorsMixin):
         self.mean = np.asarray(mean)
         self.sd = np.asarray(sd)
 
-        if self.sd.ndim > 0 and self.mean.shape != self.sd.shape:
+        if self.mean.ndim > 0 and self.sd.ndim == 0:
+            self.sd = np.full(self.mean.shape, sd)
+
+        if self.mean.shape != self.sd.shape:
             raise ValueError('mean and sd must have the same shape')
 
         if np.any(self.sd < 0):

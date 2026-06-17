@@ -59,12 +59,16 @@ def test_convert():
     assert_uncertain_eq(x, 5, 0)
     assert_uncertain_eq(y, 1, 0.1)
 
-def test_init():
+@pytest.mark.parametrize('mean,sd', [
+    pytest.param(1, -0.1, id='negative-sd'),
+    pytest.param(1, [1, 2], id='scalar-vector'),
+    pytest.param([1, 2, 3], [0.1, 0.2], id='shape-mismatch'),
+])
+def test_init(mean, sd):
     with pytest.raises(ValueError):
-        x = Uncertain(1, -0.1)
-        x = Uncertain(1, [1, 2])
-        x = Uncertain([1, 2, 3], [0.1, 0.2])
+        x = Uncertain(mean, sd)
 
+def test_const_sd():
     x = Uncertain([1, 2, 3], 0.1)
     assert x.shape == (3,)
 
@@ -101,11 +105,33 @@ def test_broadcast():
     x = Uncertain(np.array([1, 2, 3]), np.array([0.1, 0.2, 0.3]))
     y = Uncertain(3, 0.2)
 
-    z = x + y
+    z = x * y
 
-    assert_uncertain_eq(z,
-        np.array([4, 5, 6]),
-        np.array([add_quad(0.1, 0.2), add_quad(0.2, 0.2), add_quad(0.3, 0.2)]))
+    assert_uncertain_eq(
+        z,
+        np.array([3, 6, 9]),
+        np.array([
+            3 * add_quad(0.1 / 1, 0.2 / 3),
+            6 * add_quad(0.2 / 2, 0.2 / 3),
+            9 * add_quad(0.3 / 3, 0.2 / 3),
+        ])
+    )
+
+def test_broadcast_const_sd():
+    x = Uncertain(np.array([1, 2, 3]), np.array(0.1))
+    y = Uncertain(3, 0.2)
+
+    z = x * y
+
+    assert_uncertain_eq(
+        z,
+        np.array([3, 6, 9]),
+        np.array([
+            3 * add_quad(0.1 / 1, 0.2 / 3),
+            6 * add_quad(0.1 / 2, 0.2 / 3),
+            9 * add_quad(0.1 / 3, 0.2 / 3),
+        ])
+    )
 
 def test_symmetry():
     x = Uncertain(2, 0.1)

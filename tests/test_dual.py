@@ -1,101 +1,162 @@
 import numpy as np
 import pytest
-from dual import Dual
+from dual import Dual, asdual
 
-def check(z, a, b=None):
-    assert np.allclose(z.a, a)
+def assert_dual_eq(x, a, b=None):
+    assert isinstance(x, Dual)
+
+    np.testing.assert_allclose(x.a, a, atol=1e-12)
+
     if b is not None:
-        assert np.allclose(z.b, b)
+        np.testing.assert_allclose(x.b, b, atol=1e-12)
 
-BINARY_CASES = [
-    (np.add, Dual(1, 0.1), Dual(2, 0.2), 3, 0.3),
-    (np.add, Dual(1, 0.1), 2, 3, 0.1),
-    (np.add, 2, Dual(1, 0.1), 3, 0.1),
+# ==================
+# structural tests
 
-    (np.subtract, Dual(2, 0.2), Dual(1, 0.1), 1, 0.1),
-    (np.subtract, Dual(2, 0.2), 1, 1, 0.2),
+@pytest.mark.parametrize('ufunc,inputs,expected_shape', [
+    pytest.param(np.add,
+        (Dual(1, 0.1), 2),
+        (),
+        id='uscalar-scalar'),
+    pytest.param(np.subtract,
+        (Dual(np.array([1, 2, 3]), 0.1), 2),
+        (3,),
+        id='uvector-scalar'),
+    pytest.param(np.multiply,
+        (Dual(2, 0.2), np.array([1, 2, 3])),
+        (3,),
+        id='uscalar-vector'),
+    pytest.param(np.divide,
+        (Dual(np.array([1, 2, 3]), 0.1),
+           np.array([1, 2, 3])),
+        (3,),
+        id='uvector-vector'),
+    pytest.param(np.power,
+        (Dual(np.array([1, 2, 3]), 0.1),
+            Dual(np.array([[1], [2]]), np.array([[0.1], [0.2]]))),
+        (2,3),
+        id='uvector-broadcast'),
+    pytest.param(np.exp,
+        (Dual(np.array([1, 2, 3]), 0.1),),
+        (3,),
+        id='unary-preserves'),
+])
+def test_type_shape(ufunc, inputs, expected_shape):
+    x = ufunc(*inputs)
 
-    (np.multiply, Dual(2, 0.2), Dual(3, 0.3), 6, 1.2),
-    (np.multiply, Dual(2, 0.2), 3, 6, 0.6),
+    assert isinstance(x, Dual)
+    assert x.shape == expected_shape
 
-    (np.divide, Dual(4, 0.4), Dual(2, 0.2), 2, 0.0),
-    (np.divide, Dual(4, 0.4), 2, 2, 0.2),
-]
+    assert np.all(x.b >= 0)
 
-@pytest.mark.parametrize('ufunc,x,y,a,b', BINARY_CASES)
-def test_binary(ufunc, x, y, a, b):
-    check(ufunc(x, y), a, b)
+def test_asdual():
+    x = asdual(5)
+    y = asdual(Dual(1, 0.1))
 
-def test_power_const_exp():
-    x = Dual(3, 0.3)
+    assert_dual_eq(x, 5, 0)
+    assert_dual_eq(y, 1, 0.1)
 
-    y = np.power(x, 2)
+@pytest.mark.parametrize('a,b', [
+    pytest.param(1, [1, 2], id='scalar-vector'),
+    pytest.param([1, 2, 3], [0.1, 0.2], id='shape-mismatch'),
+])
+def test_init(a, b):
+    with pytest.raises(ValueError):
+        x = Dual(a, b)
 
-    check(y, 9, 1.8)
+def test_const_b():
+    x = Dual([1, 2, 3], 0.1)
+    assert x.shape == (3,)
 
-def test_power_dual_exp():
-    x = Dual(3, 0.3)
-    y = Dual(2, 0.2)
+# ==================
+# mathematical tests
 
-    z = np.power(x, y)
-
-    check(z, 9, 1.8 * (1 + np.log(3)))
-
-UNARY_CASES = [
-    (np.sin, Dual(0.5, 1.0), np.sin(0.5), np.cos(0.5)),
-    (np.cos, Dual(0.5, 1.0), np.cos(0.5), -np.sin(0.5)),
-    (np.exp, Dual(2.0, 1.0), np.exp(2.0), np.exp(2.0)),
-    (np.log, Dual(2.0, 1.0), np.log(2.0), 1 / 2.0),
-    (np.sqrt, Dual(4.0, 1.0), 2.0, 1 / (2 * np.sqrt(4.0))),
-]
-
-@pytest.mark.parametrize('ufunc,x,a,b', UNARY_CASES)
-def test_unary(ufunc, x, a, b):
-    check(ufunc(x), a, b)
-
-COMPARE_CASES = [
-    (np.less, Dual(1, 0.1), Dual(2, 0.2), True),
-    (np.less, Dual(2, 0.2), Dual(1, 0.1), False),
-    (np.less_equal, Dual(2, 0.2), Dual(2, 0.2), True),
-    (np.less_equal, Dual(2, 0.2), Dual(1, 0.1), False),
-    (np.greater, Dual(3, 0.3), Dual(2, 0.2), True),
-    (np.greater, Dual(2, 0.2), Dual(3, 0.3), False),
-    (np.greater_equal, Dual(2, 0.2), Dual(2, 0.2), True),
-    (np.greater_equal, Dual(2, 0.2), Dual(3, 0.3), False),
-
-    (np.equal, Dual(2, 0.2), Dual(2, 0.3), True),
-    (np.not_equal, Dual(2, 0.2), Dual(3, 0.2), True),
-    (np.not_equal, Dual(2, 0.2), Dual(2, 0.3), False),
-    (np.equal, Dual(2, 0.2), Dual(3, 0.2), False),
-]
-
-@pytest.mark.parametrize('ufunc,x,y,expected', COMPARE_CASES)
-def test_comparisons(ufunc, x, y, expected):
-    assert np.array_equal(ufunc(x, y), expected)
-
-def test_broadcast():
-    x = Dual(np.array([1, 2, 3]), np.array([0.1, 0.2, 0.3]))
-    y = 2.0
+def test_degenerate():
+    x = Dual(2, 0.0)
+    y = Dual(3, 0.0)
 
     z = x + y
 
-    assert z.a.shape == (3,)
-    assert z.b.shape == (3,)
+    assert_dual_eq(z, 5, 0.0)
 
-    check(z, [3, 4, 5], [0.1, 0.2, 0.3])
+def test_binary():
+    x = Dual(2, 0.1)
+    y = Dual(3, 0.2)
+
+    z1 = x + y
+    z2 = x * y
+
+    assert_dual_eq(z1, 5, 0.3)
+    assert_dual_eq(z2, 6, 0.7)
+    assert x != y
+
+def test_unary():
+    x = Dual(np.pi, 0.1)
+
+    y = np.sin(x)
+
+    assert_dual_eq(y, 0.0, -0.1)
+
+def test_broadcast():
+    x = Dual(np.array([1, 2, 3]), np.array([0.1, 0.2, 0.3]))
+    y = Dual(3, 0.2)
+
+    z = x * y
+
+    assert_dual_eq(z, np.array([3, 6, 9]), np.array([0.5, 1.0, 1.5]))
+
+def test_broadcast_const_b():
+    x = Dual(np.array([1, 2, 3]), np.array(0.1))
+    y = Dual(3, 0.2)
+
+    z = x * y
+
+    assert_dual_eq(z, np.array([3, 6, 9]), np.array([0.5, 0.7, 0.9]))
 
 def test_symmetry():
-    x = Dual(1, 0.1)
-    y = Dual(2, 0.2)
+    x = Dual(2, 0.1)
+    y = Dual(3, 0.2)
 
     z1 = x + y
     z2 = y + x
 
-    check(z1, z2.a, z2.b)
+    assert_dual_eq(z1, z2.a, z2.b)
 
 def test_composition():
-    x = Dual(2, 0.2)
+    x = Dual(2, 0.1)
+    y = np.exp(x**2)
 
-    y = np.sin(x**2)
+    assert_dual_eq(y, np.exp(4), 0.4*np.exp(4))
 
-    check(y, np.sin(4), 0.8*np.cos(4))
+@pytest.mark.parametrize('ufunc,a,b', [
+    pytest.param(np.sqrt, 0, np.inf, id='sqrt'),
+    pytest.param(lambda x: 1/x, np.inf, -np.inf, id='1/uscalar-0div'),
+    pytest.param(lambda x: 0/x, np.nan, np.nan, id='scalar/uscalar'),
+    pytest.param(lambda x: x/0, np.nan, np.nan, id='uscalar/scalar'),
+    pytest.param(np.log, -np.inf, np.inf, id='log'),
+])
+def test_zero(ufunc, a, b):
+    with pytest.warns(RuntimeWarning,
+            match=r'(divide by zero|invalid value) encountered'):
+        assert_dual_eq(ufunc(Dual(0, 0.1)), a, b)
+
+def test_other_zero():
+    x = Dual(0, 0.1)
+    y = Dual(1, 0.1)
+
+    assert_dual_eq(x**2, 0, 0.0)
+
+    with pytest.warns(RuntimeWarning,
+            match=r'(divide by zero|invalid value) encountered'):
+        # assert_dual_eq(y/0, np.inf, np.inf)
+        assert_dual_eq(y/0, np.inf, np.nan)
+
+@pytest.mark.parametrize('ufunc,a,b', [
+    pytest.param(np.log, np.nan, -0.1, id='log'),
+    pytest.param(np.sqrt, np.nan, np.nan, id='sqrt'),
+    pytest.param(lambda x: x**0.5, np.nan, np.nan, id='fractional-power'),
+])
+def test_imag(ufunc, a, b):
+    with pytest.warns(RuntimeWarning,
+            match=r'(divide by zero|invalid value) encountered'):
+        assert_dual_eq(ufunc(Dual(-1, 0.1)), a, b)
