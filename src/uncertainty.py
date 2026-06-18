@@ -51,6 +51,9 @@ class Uncertain(np.lib.mixins.NDArrayOperatorsMixin):
     def __repr__(self):
         return f'Uncertain(mean={self.mean}, sd={self.sd})'
 
+    def __getitem__(self, index):
+        return Uncertain(self.mean[index], self.sd[index])
+
     def __str__(self):
         if self.ndim == 0:
             return f'{self.mean} ± {self.sd}'
@@ -59,16 +62,16 @@ class Uncertain(np.lib.mixins.NDArrayOperatorsMixin):
             s = '[ '
 
             threshold = np.get_printoptions()['threshold']
-            if self.a.size < threshold:
-                for a, b in zip(self.a[:threshold], self.b[:threshold]):
-                    s += f'{a}, {b}\n  '
+            if self.mean.size < threshold:
+                for mean, sd in zip(self.mean[:threshold], self.sd[:threshold]):
+                    s += f'{mean}, {sd}\n  '
                 s = s[:-3]
             else:
-                s += f'{self.a[0]} ± {self.b[0]}\n  '
-                s += f'{self.a[1]} ± {self.b[1]}\n  '
+                s += f'{self.mean[0]} ± {self.sd[0]}\n  '
+                s += f'{self.mean[1]} ± {self.sd[1]}\n  '
                 s += '...\n  '
-                s += f'{self.a[-2]} ± {self.b[-2]}\n  '
-                s += f'{self.a[-1]} ± {self.b[-1]}'
+                s += f'{self.mean[-2]} ± {self.sd[-2]}\n  '
+                s += f'{self.mean[-1]} ± {self.sd[-1]}'
 
             s += ' ]'
 

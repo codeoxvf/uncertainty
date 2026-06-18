@@ -72,6 +72,15 @@ def test_const_sd():
     x = Uncertain([1, 2, 3], 0.1)
     assert x.shape == (3,)
 
+def test_subscript():
+    x = Uncertain([1, 2, 3], 0.1)
+
+    assert_uncertain_eq(x[1], 2, 0.1)
+    assert x[1].shape == ()
+
+    assert isinstance(x[1:], Uncertain)
+    assert x[1:].shape == (2,)
+
 # ==================
 # mathematical tests
 

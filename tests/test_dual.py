@@ -68,6 +68,15 @@ def test_const_b():
     x = Dual([1, 2, 3], 0.1)
     assert x.shape == (3,)
 
+def test_subscript():
+    x = Dual([1, 2, 3], 0.1)
+
+    assert_dual_eq(x[1], 2, 0.1)
+    assert x[1].shape == ()
+
+    assert isinstance(x[1:], Dual)
+    assert x[1:].shape == (2,)
+
 # ==================
 # mathematical tests
 

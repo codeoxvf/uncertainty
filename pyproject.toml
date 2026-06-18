@@ -1,5 +1,5 @@
 [project]
-name = "Uncertainty"
+name = "uncertainty"
 version = "0.1.0"
 description = "Uncertainty propagation"
 readme = "README.md"
@@ -11,4 +11,13 @@ dependencies = [
 [dependency-groups]
 dev = [
     "pytest>=9.1.0",
+    "uncertainty",
 ]
+
+[tool.uv.workspace]
+members = [
+    ".",
+]
+
+[tool.uv.sources]
+uncertainty = { workspace = true, editable = true }

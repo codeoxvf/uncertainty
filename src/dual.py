@@ -116,6 +116,9 @@ class Dual(np.lib.mixins.NDArrayOperatorsMixin):
     def ndim(self):
         return self.a.ndim
 
+    def __getitem__(self, index):
+        return Dual(self.a[index], self.b[index])
+
     def __str__(self):
         if self.ndim == 0:
             return f'{self.a}, {self.b}'
