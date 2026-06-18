@@ -54,6 +54,14 @@ class Uncertain(np.lib.mixins.NDArrayOperatorsMixin):
     def __getitem__(self, index):
         return Uncertain(self.mean[index], self.sd[index])
 
+    def __iter__(self):
+        if self.ndim == 0:
+            yield self.mean
+            yield self.sd
+        else:
+            for mean, sd in zip(self.mean.ravel(), self.sd.ravel()):
+                yield Uncertain(mean, sd)
+
     def __str__(self):
         if self.ndim == 0:
             return f'{self.mean} ± {self.sd}'

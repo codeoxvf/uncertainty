@@ -77,6 +77,18 @@ def test_subscript():
     assert isinstance(x[1:], Dual)
     assert x[1:].shape == (2,)
 
+def test_iter():
+    x = Dual([1, 2, 3], 0.1)
+
+    for i in x:
+        assert isinstance(i, Dual)
+
+    y = Dual(1, 0.1)
+    a, b = y
+
+    assert a == 1
+    assert b == 0.1
+
 # ==================
 # mathematical tests
 

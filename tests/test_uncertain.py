@@ -81,6 +81,18 @@ def test_subscript():
     assert isinstance(x[1:], Uncertain)
     assert x[1:].shape == (2,)
 
+def test_iter():
+    x = Uncertain([1, 2, 3], 0.1)
+
+    for i in x:
+        assert isinstance(i, Uncertain)
+
+    y = Uncertain(1, 0.1)
+    a, b = y
+
+    assert a == 1
+    assert b == 0.1
+
 # ==================
 # mathematical tests
 
