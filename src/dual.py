@@ -72,6 +72,12 @@ def _sqrt_dual(x: Dual):
     sa = np.sqrt(x.a)
     return Dual(sa, x.b / (2 * sa))
 
+def _neg_dual(x: Dual):
+    return Dual(-x.a, -x.b)
+
+def _pos_dual(x: Dual):
+    return x
+
 DUAL_BINARY_OPS = {
     np.add: _add_dual,
     np.subtract: _sub_dual,
@@ -95,6 +101,8 @@ DUAL_UNARY_OPS = {
     np.exp: _exp_dual,
     np.log: _log_dual,
     np.sqrt: _sqrt_dual,
+    np.negative: _neg_dual,
+    np.positive: _pos_dual,
 }
 
 class Dual(np.lib.mixins.NDArrayOperatorsMixin):
