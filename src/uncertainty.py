@@ -11,8 +11,35 @@ def uncertain(x):
 def from_observations(data: NDArray):
     return Uncertain(np.mean(data), np.std(data, ddof=1))
 
+def _eq_uncertain(x: Uncertain, y: Uncertain):
+    return x.mean + x.sd >= y.mean - y.sd and y.mean + y.sd >= x.mean - x.sd
+
+def _neq_uncertain(x: Uncertain, y: Uncertain):
+    return not _eq_uncertain(x, y)
+
+def _lt_uncertain(x: Uncertain, y: Uncertain):
+    return x.mean - x.sd < y.mean + y.sd
+
+def _gt_uncertain(x: Uncertain, y: Uncertain):
+    return x.mean + x.sd > y.mean - y.sd
+
+def _leq_uncertain(x: Uncertain, y: Uncertain):
+    return x.mean - x.sd <= y.mean + y.sd
+
+def _geq_uncertain(x: Uncertain, y: Uncertain):
+    return x.mean + x.sd >= y.mean - y.sd
+
+UNCERTAIN_COMPARE_OPS = {
+    np.equal: _eq_uncertain,
+    np.not_equal: _neq_uncertain,
+    np.less: _lt_uncertain,
+    np.less_equal: _leq_uncertain,
+    np.greater: _gt_uncertain,
+    np.greater_equal: _geq_uncertain,
+}
+
 class Uncertain(np.lib.mixins.NDArrayOperatorsMixin):
-    def __init__(self, mean, sd, correlations=None):
+    def __init__(self, mean, sd, correlations=None, relerr=False):
         self.mean = np.asarray(mean)
         self.sd = np.asarray(sd)
 
@@ -24,6 +51,9 @@ class Uncertain(np.lib.mixins.NDArrayOperatorsMixin):
 
         if np.any(self.sd < 0):
             raise ValueError('sd cannot be negative')
+
+        if relerr:
+            self.sd *= self.mean
 
         if correlations is None:
             self.correlations = { self: 1 }
@@ -113,12 +143,12 @@ class Uncertain(np.lib.mixins.NDArrayOperatorsMixin):
 
             return Uncertain(mean, sd)
 
-        elif ufunc in DUAL_COMPARE_OPS:
+        elif ufunc in UNCERTAIN_COMPARE_OPS:
             x, y = inputs
             x = uncertain(x)
             y = uncertain(y)
 
-            return ufunc(x.mean, y.mean)
+            return UNCERTAIN_COMPARE_OPS[ufunc](x, y)
 
         elif ufunc in DUAL_UNARY_OPS:
             mean = ufunc(self.mean)
