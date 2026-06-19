@@ -1,4 +1,5 @@
 import numpy as np
+from numpy.typing import NDArray
 from dual import Dual, DUAL_BINARY_OPS, DUAL_COMPARE_OPS, DUAL_UNARY_OPS
 
 def uncertain(x):
@@ -6,6 +7,9 @@ def uncertain(x):
         return x
 
     return Uncertain(x, 0.0)
+
+def from_observations(data: NDArray):
+    return Uncertain(np.mean(data), np.std(data, ddof=1))
 
 class Uncertain(np.lib.mixins.NDArrayOperatorsMixin):
     def __init__(self, mean, sd, correlations=None):
